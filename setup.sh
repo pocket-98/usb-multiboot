@@ -6,6 +6,7 @@
 device=/dev/sda
 efi_size=256M
 iso_size=24G
+iso_param_file=iso.txt
 
 ########################################
 # set script standard variables
@@ -129,20 +130,6 @@ get_arch_grub() {
 ########################################
 # install grub
 ########################################
-append_menu_entry() {
-    cat << EOF | sudo tee -a "${5}/usr/local/etc/grub.d/40_custom"
-menuentry 'tiny core on ${device}${_part_linux}' {
-	insmod part_msdos
-	insmod ext2
-	search --no-floppy --fs-uuid --set=root ${1}
-	linux ${3} root=UUID=${2} rw loglevel=3 quiet
-	initrd ${4}
-}
-
-menu
-EOF
-}
-
 install_tinycore() {
     mnt=$(mktemp -d mnt-XXXXX)
     sudo mount "${device}${_part_linux}" "${mnt}"
@@ -155,8 +142,8 @@ install_tinycore() {
     cd "${mnt}"
     gzip -cd ../bin/core.gz | sudo cpio -idm > /dev/null
     cd ..
-    sudo cp bin/vmlinuz "${mnt}/boot/vmlinuz"
-    sudo cp bin/core.gz "${mnt}/boot/initramfs.gz"
+    sudo cp bin/vmlinuz "${mnt}/boot/vmlinuz64"
+    sudo cp bin/core.gz "${mnt}/boot/corepure64.gz"
     sync
 
     # setup fstab
@@ -199,18 +186,79 @@ install_tinycore() {
     #sudo tar --zstd -xf iso/grub*pkg.tar.zst -C "${mnt}" usr/lib/grub
     #sync
 
-    # insert custom menu entries
-    echo "setting grub menu entry"
-    linux_uuid=$(sudo blkid "${device}${_part_linux}" | grep -Eo "\bUUID=\"[a-zA-Z0-9-]+\"" | cut -d'"' -f2)
-    append_menu_entry "${efi_uuid}" "${linux_uuid}" /vmlinuz /initramfs.gz "${mnt}"
-    sync
-
     # unmount
     echo "finished tinycore preparation"
     sudo umount "${mnt}/boot"
     sudo umount "${mnt}"
     rmdir "${mnt}"
 }
+
+_append_menu_entry() {
+    cat << EOF | sudo tee -a "${5}/usr/local/etc/grub.d/40_custom"
+menuentry 'tiny core from initram on ${device}${_part_efi}' {
+	insmod part_msdos
+	insmod ext2
+	search --no-floppy --fs-uuid --set=root ${1}
+	linux ${3}
+	initrd ${4}
+}
+
+menuentry 'archlinux from usb partition ${device}${_part_linux}' {
+	load_video
+	set gfxpayload=keep
+	insmod gzio
+	insmod part_msdos
+	insmod ext2
+	search --no-floppy --fs-uuid --set=root ${2}
+	linux /boot/vmlinuz-linux root=UUID=${2} rw quiet
+	initrd /boot/initramfs-linux.img
+}
+
+EOF
+}
+
+_append_iso_entry() {
+    cat << EOF | sudo tee -a "${1}/usr/local/etc/grub.d/40_custom"
+menuentry '${3}' {
+	search --no-floppy --fs-uuid --set=root ${2}
+	set isofile="/${3}"
+	load_video
+	insmod loopback
+	loopback loop \$isofile
+	linux (loop)${4} ${6}
+	initrd (loop)${5}
+}
+EOF
+}
+
+set_grub_menus() {
+    # insert custom menu entries
+    mnt=$(mktemp -d mnt-XXXXX)
+    sudo mount "${device}${_part_linux}" "${mnt}"
+    sudo mount "${device}${_part_iso}" "${mnt}/mnt"
+
+    echo "setting grub menu entries"
+    efi_uuid=$(sudo blkid "${device}${_part_efi}" | grep -Eo "\bUUID=\"[a-zA-Z0-9-]+\"" | cut -d'"' -f2)
+    iso_uuid=$(sudo blkid "${device}${_part_iso}" | grep -Eo "\bUUID=\"[a-zA-Z0-9-]+\"" | cut -d'"' -f2)
+    linux_uuid=$(sudo blkid "${device}${_part_linux}" | grep -Eo "\bUUID=\"[a-zA-Z0-9-]+\"" | cut -d'"' -f2)
+    _append_menu_entry "${efi_uuid}" "${linux_uuid}" /vmlinuz64 /corepure64.gz "${mnt}"
+    cat "${iso_param_file}" | while read iso_line; do
+        iso=$(echo -e "${iso_line}" | awk '{print $1}')
+        kernel=$(echo -e "${iso_line}" | awk '{print $2}')
+        initram=$(echo -e "${iso_line}" | awk '{print $3}')
+        flags=$(echo -e "${iso_line}" | awk '{s=""; for(i=4; i<=NF; i++) s=s $i " "; print s }')
+        echo "copying '${iso}' to ${device}${_part_iso}"
+        sudo cp "iso/${iso}" "${mnt}/mnt/"
+        _append_iso_entry "${mnt}" "${iso_uuid}" "${iso}" "${kernel}" "${initram}" "${flags}"
+        sync
+    done
+
+    sudo umount "${mnt}/mnt"
+    sudo umount "${mnt}"
+    echo "finished copying iso and setting grub boot menus"
+    rmdir "${mnt}"
+}
+
     
 install_grub() {
     mnt=$(mktemp -d mnt-XXXXX)
@@ -258,7 +306,7 @@ repack_cpio() {
     sudo chroot "${mnt}" sh -c "find / | sudo cpio -o -H newc" | gzip > bin/newcore.gz
     sync
     sudo mount "${device}${_part_efi}" "${mnt}/boot"
-    sudo cp bin/newcore.gz "${mnt}/boot/initramfs.gz"
+    sudo cp bin/newcore.gz "${mnt}/boot/corepure64.gz"
     sync
 
     sudo umount "${mnt}/boot"
@@ -281,9 +329,12 @@ main() {
     get_tiny_pkg liblzma
     get_tiny_pkg liblvm
     get_tiny_pkg libudev
+    get_tiny_pkg syslinux
+    get_tiny_pkg tcinstall
     #get_arch_grub
 
     install_tinycore
+    set_grub_menus
     install_grub
     repack_cpio
 }

@@ -1,0 +1,3 @@
+tinycore64-16.1.iso /boot/vmlinuz64 /boot/corepure64.gz
+archlinux-2025.09.01-x86_64.iso /arch/boot/x86_64/vmlinuz-linux /arch/boot/x86_64/initramfs-linux.img archisobasedir=arch archisosearchuuid=2025-09-01-16-37-02-00 img_dev=UUID=2025-09-01-16-37-02-00 img_loop="/archlinux-2025.09.01-x86_64.iso"
+proxmox-ve_9.0-1.iso /boot/linux26 /boot/initrd.img ro ramdisk_size=16777216 rw quiet splash=silent

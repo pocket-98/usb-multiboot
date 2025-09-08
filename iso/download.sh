@@ -11,6 +11,8 @@ downloads=(
     "liblzma_tc"
     "liblvm_tc"
     "libudev_tc"
+    "syslinux_tc"
+    "install_tc"
     #"grub_arch"
     "proxmox"
     "arch"
@@ -46,6 +48,14 @@ liblvm_tc_sha="4df728b069c986256f4c6e8c64ba1933822ffb9ddac0b2659472f4f34a829ed1"
 libudev_tc_url="http://tinycorelinux.net/16.x/x86_64/tcz/udev-lib.tcz"
 libudev_tc_file="libudev-173.tcz"
 libudev_tc_sha="6b357512151a3dae7f71623d1efcd228f0460595bcbd88dbf914c18f112b7087"
+
+syslinux_tc_url="http://tinycorelinux.net/16.x/x86_64/tcz/syslinux.tcz"
+syslinux_tc_file="syslinux-6.03.tcz"
+syslinux_tc_sha="s"
+
+install_tc_url="http://www.tinycorelinux.net/16.x/x86_64/tcz/tc-install.tcz"
+install_tc_file="tcinstall-0.9.tcz"
+install_tc_sha="fed57c4c501f542df127db8cb52d60220aa1ae02634fe3e6b141d0adb7c944e5"
 
 #grub_arch_url="https://mirror.rackspace.com/archlinux/core/os/x86_64/grub-2:2.12.r359.g19c698d12-1-x86_64.pkg.tar.zst"
 #grub_arch_file="grub2-2.12.pkg.tar.zst"
