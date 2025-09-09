@@ -146,11 +146,6 @@ install_tinycore() {
     sudo cp bin/core.gz "${mnt}/boot/corepure64.gz"
     sync
 
-    # setup fstab
-    echo "setting efi boot partition in /etc/fstab"
-    efi_uuid=$(sudo blkid "${device}${_part_efi}" | grep -Eo "\bUUID=\"[a-zA-Z0-9-]+\"" | cut -d'"' -f2)
-    echo "UUID=${efi_uuid}  /boot  vfat  umask=0077  0 1" | sudo tee -a "${mnt}/etc/fstab"
-
     # setup tinycore coreutils
     echo "installing tinycore coreutils"
     sudo tar -zxf bin/tc-coreutils.tar.gz -C "${mnt}" ./usr/local/bin/stat
@@ -179,6 +174,16 @@ install_tinycore() {
     # setup tinycore libudev
     echo "installing tinycore libudev"
     sudo tar -zxf bin/tc-libudev.tar.gz -C "${mnt}"
+    sync
+
+    # setup tinycore syslinux
+    echo "installing tinycore syslinux"
+    sudo tar -zxf bin/tc-syslinux.tar.gz -C "${mnt}"
+    sync
+
+    # setup tinycore tcinstall
+    echo "installing tinycore tcinstall"
+    sudo tar -zxf bin/tc-tcinstall.tar.gz -C "${mnt}"
     sync
 
     # add extra arch grub sources
@@ -219,14 +224,44 @@ EOF
 
 _append_iso_entry() {
     cat << EOF | sudo tee -a "${1}/usr/local/etc/grub.d/40_custom"
-menuentry '${3}' {
+menuentry '${3} (grub.cfg)' {
+	set md="\$prefix/memdisk"
 	search --no-floppy --fs-uuid --set=root ${2}
-	set isofile="/${3}"
+	set iso_path="/${3}"
+	set iso_dev="${2}"
+	insmod loopback
+	loopback loop \$iso_path
+	if [ -f (loop)/boot/grub/grub.cfg ]; then
+		configfile (loop)/boot/grub/grub.cfg
+	else
+		if [ -f (loop)/boot/grub/loopback.cfg ]; then
+			configfile (loop)/boot/grub/grub.cfg
+		else
+			echo "error: couldnt find grub.cfg"
+		fi
+	fi
+	loopback --delete loop
+}
+menuentry '${3} (efi)' {
+	search --no-floppy --fs-uuid --set=root ${2}
+	set iso_path="/${3}"
+	set iso_dev="${2}"
 	load_video
 	insmod loopback
-	loopback loop \$isofile
+	loopback loop \$iso_path
 	linux (loop)${4} ${6}
 	initrd (loop)${5}
+}
+EOF
+}
+
+_append_reboot_entry() {
+    cat << EOF | sudo tee -a "${1}/usr/local/etc/grub.d/40_custom"
+menuentry 'Reboot' --class restart {
+	reboot
+}
+menuentry 'Shutdown' --class shutdown {
+	halt
 }
 EOF
 }
@@ -252,6 +287,7 @@ set_grub_menus() {
         _append_iso_entry "${mnt}" "${iso_uuid}" "${iso}" "${kernel}" "${initram}" "${flags}"
         sync
     done
+    _append_reboot_entry
 
     sudo umount "${mnt}/mnt"
     sudo umount "${mnt}"
@@ -282,6 +318,7 @@ install_grub() {
     sudo LD_LIBRARY_PATH=/usr/local/lib chroot "${mnt}" /usr/local/sbin/grub-install --boot-directory=/boot --directory=/usr/local/lib/grub/x86_64-efi --efi-directory=/boot --bootloader-id=GRUB --removable "${device}"
     sudo LD_LIBRARY_PATH=/usr/local/lib chroot "${mnt}" /usr/local/sbin/grub-install --boot-directory=/boot --directory=/usr/local/lib/grub/i386-pc "${device}"
     sudo LD_LIBRARY_PATH=/usr/local/lib chroot "${mnt}" /usr/local/sbin/grub-mkconfig -o /boot/grub/grub.cfg
+    sudo chroot "${mnt}" cp /usr/local/share/syslinux/memdisk /boot/grub/memdisk
     sync
 
     sudo umount -R "${mnt}/proc"

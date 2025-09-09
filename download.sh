@@ -13,6 +13,7 @@ downloads=(
     "libudev_tc"
     "syslinux_tc"
     "install_tc"
+    #"syslinux"
     #"grub_arch"
     "proxmox"
     "arch"
@@ -51,11 +52,15 @@ libudev_tc_sha="6b357512151a3dae7f71623d1efcd228f0460595bcbd88dbf914c18f112b7087
 
 syslinux_tc_url="http://tinycorelinux.net/16.x/x86_64/tcz/syslinux.tcz"
 syslinux_tc_file="syslinux-6.03.tcz"
-syslinux_tc_sha="s"
+syslinux_tc_sha="9e19b2c55e2c2667c7445a6d8da746e48f8f46a1d6682d9e6c8f164b9550aa55"
 
 install_tc_url="http://www.tinycorelinux.net/16.x/x86_64/tcz/tc-install.tcz"
 install_tc_file="tcinstall-0.9.tcz"
 install_tc_sha="fed57c4c501f542df127db8cb52d60220aa1ae02634fe3e6b141d0adb7c944e5"
+
+#syslinux_url="https://www.kernel.org/pub/linux/utils/boot/syslinux/syslinux-6.03.tar.gz"
+#syslinux_file="syslinux-6.03.tar.gz"
+#syslinux_sha="250b9bd90945d361596a7a69943d0bdc5fc0c0917aa562609f8d3058a2c36b3a"
 
 #grub_arch_url="https://mirror.rackspace.com/archlinux/core/os/x86_64/grub-2:2.12.r359.g19c698d12-1-x86_64.pkg.tar.zst"
 #grub_arch_file="grub2-2.12.pkg.tar.zst"
@@ -83,8 +88,8 @@ download_and_verify() {
     iso_sha="${!iso_sha}"
     need_to_download=true
     echo -n "${dl}: '${iso_file}': "
-    if [ -f "${iso_file}" ]; then
-        sha256sum "${iso_file}" | grep "${iso_sha}" > /dev/null
+    if [ -f "iso/${iso_file}" ]; then
+        sha256sum "iso/${iso_file}" | grep "${iso_sha}" > /dev/null
         iso_sha_match=$?
         if [ "${iso_sha_match}" -eq 0 ]; then
             msg="downloaded and verified sha256 hash"
@@ -98,14 +103,14 @@ download_and_verify() {
     echo "${msg}"
 
     if "${need_to_download}"; then
-        curl -o "${iso_file}" -Lk "${iso_url}"
-        sha256sum "${iso_file}" | grep "${iso_sha}" > /dev/null
+        curl -o "iso/${iso_file}" -Lk "${iso_url}"
+        sha256sum "iso/${iso_file}" | grep "${iso_sha}" > /dev/null
         iso_sha_match=$?
         if [ "${iso_sha_match}" -eq 0 ]; then
             echo "downloaded and verified sha256 hash"
         else
             echo "error: sha256 hash mismatch on download, deleting bad iso"
-            rm "${iso_file}"
+            rm "iso/${iso_file}"
         fi
     fi
 }
