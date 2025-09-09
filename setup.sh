@@ -70,17 +70,17 @@ get_tinycore() {
     if [ -f bin/core.gz ] && [ -f bin/vmlinuz ]; then
         echo "found tinycore kernel and initram 'vmlinuz' and 'core.gz'"
     else
-        if [ -f iso/tinycore*iso ]; then
-            tinycore_iso=$(ls iso/ | grep -E "tinycore.*\.iso" | head -n 1)
+        if [ -f iso/tinycore/tinycore*iso ]; then
+            tinycore_iso=$(ls iso/tinycore | grep -E "tinycore.*\.iso" | head -n 1)
             echo "found tinycore: '${tinycore_iso}'"
             echo "extracting vmlinuz and core.gz from iso"
             tiny=$(mktemp -d tiny-XXXXX)
-            sudo mount -o ro,loop "iso/${tinycore_iso}" "${tiny}"
+            sudo mount -o ro,loop "iso/tinycore/${tinycore_iso}" "${tiny}"
             mkdir -p bin
-            cp "${tiny}/boot/corepure64.gz" bin/core.gz
-            cp "${tiny}/boot/vmlinuz64" bin/vmlinuz
-            chmod 664 bin/core.gz
-            chmod 664 bin/vmlinuz
+            cp "${tiny}/boot/corepure64.gz" bin/corepure64.gz
+            cp "${tiny}/boot/vmlinuz64" bin/vmlinuz64
+            chmod 664 bin/corepure64.gz
+            chmod 664 bin/vmlinuz64
             sudo umount "${tiny}"
             rmdir "${tiny}"
         else
@@ -96,12 +96,12 @@ get_tiny_pkg() {
     if [ -f bin/tc-${pkg}.tar.gz ]; then
         echo "found ${pkg} tinycore binaries"
     else
-        if [ -f iso/${pkg}*tcz ]; then
-            tcz=$(ls iso/ | grep -E "${pkg}.*\.tcz" | head -n 1)
+        if [ -f iso/tinycore/${pkg}*tcz ]; then
+            tcz=$(ls iso/tinycore/ | grep -E "${pkg}.*\.tcz" | head -n 1)
             echo "found tinycore ${pkg}: '${tcz}'"
             echo "extracting binaries from squash tcz"
             tiny=$(mktemp -d tiny-XXXXX)
-            sudo mount -o ro,loop "iso/${tcz}" "${tiny}"
+            sudo mount -o ro,loop "iso/tinycore/${tcz}" "${tiny}"
             mkdir -p bin
             tar -zcf "bin/tc-${pkg}.tar.gz" -C "${tiny}/" .
             sudo umount "${tiny}"
@@ -142,8 +142,8 @@ install_tinycore() {
     cd "${mnt}"
     gzip -cd ../bin/core.gz | sudo cpio -idm > /dev/null
     cd ..
-    sudo cp bin/vmlinuz "${mnt}/boot/vmlinuz64"
-    sudo cp bin/core.gz "${mnt}/boot/corepure64.gz"
+    sudo cp bin/vmlinuz64 "${mnt}/boot/vmlinuz64"
+    sudo cp bin/corepure64.gz "${mnt}/boot/corepure64.gz"
     sync
 
     # setup tinycore coreutils
@@ -225,17 +225,17 @@ EOF
 _append_iso_entry() {
     cat << EOF | sudo tee -a "${1}/usr/local/etc/grub.d/40_custom"
 menuentry '${3} (grub.cfg)' {
-	set md="\$prefix/memdisk"
 	search --no-floppy --fs-uuid --set=root ${2}
-	set iso_path="/${3}"
-	set iso_dev="${2}"
+	set iso_path="${3}"
+	set iso_uuid="${2}"
 	insmod loopback
-	loopback loop \$iso_path
+	loopback loop /\$iso_path
+	set root=(loop)
 	if [ -f (loop)/boot/grub/grub.cfg ]; then
 		configfile (loop)/boot/grub/grub.cfg
 	else
 		if [ -f (loop)/boot/grub/loopback.cfg ]; then
-			configfile (loop)/boot/grub/grub.cfg
+			configfile (loop)/boot/grub/loopback.cfg
 		else
 			echo "error: couldnt find grub.cfg"
 		fi
@@ -244,11 +244,11 @@ menuentry '${3} (grub.cfg)' {
 }
 menuentry '${3} (efi)' {
 	search --no-floppy --fs-uuid --set=root ${2}
-	set iso_path="/${3}"
-	set iso_dev="${2}"
+	set iso_path="${3}"
+	set iso_uuid="${2}"
 	load_video
 	insmod loopback
-	loopback loop \$iso_path
+	loopback loop /\$iso_path
 	linux (loop)${4} ${6}
 	initrd (loop)${5}
 }
@@ -282,10 +282,14 @@ set_grub_menus() {
         kernel=$(echo -e "${iso_line}" | awk '{print $2}')
         initram=$(echo -e "${iso_line}" | awk '{print $3}')
         flags=$(echo -e "${iso_line}" | awk '{s=""; for(i=4; i<=NF; i++) s=s $i " "; print s }')
-        echo "copying '${iso}' to ${device}${_part_iso}"
-        sudo cp "iso/${iso}" "${mnt}/mnt/"
-        _append_iso_entry "${mnt}" "${iso_uuid}" "${iso}" "${kernel}" "${initram}" "${flags}"
-        sync
+	if [ -f "iso/${iso}" ]; then
+            echo "copying '${iso}' to ${device}${_part_iso}"
+            sudo cp "iso/${iso}" "${mnt}/mnt/"
+            _append_iso_entry "${mnt}" "${iso_uuid}" "${iso}" "${kernel}" "${initram}" "${flags}"
+            sync
+        else
+            echo "skipping '${iso}' since not downloaded"
+        fi
     done
     _append_reboot_entry
 

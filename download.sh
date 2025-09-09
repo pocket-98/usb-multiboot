@@ -23,39 +23,39 @@ downloads=(
 # script internal variables
 ########################################
 tinycore_url="http://tinycorelinux.net/16.x/x86_64/release/TinyCorePure64-16.1.iso"
-tinycore_file="tinycore64-16.1.iso"
+tinycore_file="tinycore/tinycore64-16.1.iso"
 tinycore_sha="0b995a561365057ff17a9983a08a52d8f0c81153fc6eba1a4e863be03bac2254"
 
 coreutils_tc_url="http://tinycorelinux.net/16.x/x86_64/tcz/coreutils.tcz"
-coreutils_tc_file="coreutils-9.5.tcz"
+coreutils_tc_file="tinycore/coreutils-9.5.tcz"
 coreutils_tc_sha="2377c14d86b0f35458e96b6339cca1daeed1854f53c797b17b7afd71ba7bee6c"
 
 grub_tc_url="http://tinycorelinux.net/16.x/x86_64/tcz/grub2-multi.tcz"
-grub_tc_file="grub2-2.12.tcz"
+grub_tc_file="tinycore/grub2-2.12.tcz"
 grub_tc_sha="e21e9b4d54171ac79eed5583925ad9c385064e27ace7badb1773ca180b714678"
 
 efiboot_tc_url="http://tinycorelinux.net/16.x/x86_64/tcz/efibootmgr.tcz"
-efiboot_tc_file="efibootmgr-18.tcz"
+efiboot_tc_file="tinycore/efibootmgr-18.tcz"
 efiboot_tc_sha="f8844b7d2728ee02a47e0a1795d61bfe4703c13509a030dcbcb009c50c4d0fe3"
 
 liblzma_tc_url="http://tinycorelinux.net/16.x/x86_64/tcz/liblzma.tcz"
-liblzma_tc_file="liblzma-5.6.3.tcz"
+liblzma_tc_file="tinycore/liblzma-5.6.3.tcz"
 liblzma_tc_sha="b550c00b318a89885f2a9d4f7d6a15b8d0834e50aab9094d50d417dba66828e7"
 
 liblvm_tc_url="http://tinycorelinux.net/16.x/x86_64/tcz/liblvm2.tcz"
-liblvm_tc_file="liblvm2-2.02.177.tcz"
+liblvm_tc_file="tinycore/liblvm2-2.02.177.tcz"
 liblvm_tc_sha="4df728b069c986256f4c6e8c64ba1933822ffb9ddac0b2659472f4f34a829ed1"
 
 libudev_tc_url="http://tinycorelinux.net/16.x/x86_64/tcz/udev-lib.tcz"
-libudev_tc_file="libudev-173.tcz"
+libudev_tc_file="tinycore/libudev-173.tcz"
 libudev_tc_sha="6b357512151a3dae7f71623d1efcd228f0460595bcbd88dbf914c18f112b7087"
 
 syslinux_tc_url="http://tinycorelinux.net/16.x/x86_64/tcz/syslinux.tcz"
-syslinux_tc_file="syslinux-6.03.tcz"
+syslinux_tc_file="tinycore/syslinux-6.03.tcz"
 syslinux_tc_sha="9e19b2c55e2c2667c7445a6d8da746e48f8f46a1d6682d9e6c8f164b9550aa55"
 
 install_tc_url="http://www.tinycorelinux.net/16.x/x86_64/tcz/tc-install.tcz"
-install_tc_file="tcinstall-0.9.tcz"
+install_tc_file="tinycore/tcinstall-0.9.tcz"
 install_tc_sha="fed57c4c501f542df127db8cb52d60220aa1ae02634fe3e6b141d0adb7c944e5"
 
 #syslinux_url="https://www.kernel.org/pub/linux/utils/boot/syslinux/syslinux-6.03.tar.gz"
@@ -103,6 +103,7 @@ download_and_verify() {
     echo "${msg}"
 
     if "${need_to_download}"; then
+	mkdir -p "$(dirname iso/${iso_file})"
         curl -o "iso/${iso_file}" -Lk "${iso_url}"
         sha256sum "iso/${iso_file}" | grep "${iso_sha}" > /dev/null
         iso_sha_match=$?
